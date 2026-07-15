@@ -1,0 +1,132 @@
+Metadata-Version: 2.4
+Name: f1dash
+Version: 0.1.0
+Summary: Multi-view F1 pit wall dashboard backend
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.116.0
+Requires-Dist: uvicorn[standard]>=0.35.0
+Requires-Dist: fastf1>=3.4.0
+Requires-Dist: pandas>=2.3.0
+Requires-Dist: pydantic>=2.11.0
+Requires-Dist: pydantic-settings>=2.10.0
+Requires-Dist: python-dotenv>=1.1.0
+Requires-Dist: redis>=5.2.0
+Requires-Dist: pyarrow>=17.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3.0; extra == "dev"
+Requires-Dist: httpx>=0.28.0; extra == "dev"
+Requires-Dist: ruff>=0.12.0; extra == "dev"
+
+# F1 Dash
+
+FastF1-powered pit wall dashboard project for Practice, Qualifying, and Race analysis.
+
+## What is implemented now
+
+- FastAPI backend scaffold
+- FastF1 session loader service with local cache
+- React + TypeScript frontend scaffold with three dashboard views
+- Optional Redis cache layer + persistent normalized session snapshots
+- Multi-session comparison endpoint (FP1/FP2/Q/R) with trend-ready payloads
+- Background precompute job API to warm telemetry and strategy caches
+- Export workflows for CSV/Parquet session datasets and trend outputs
+- API endpoints:
+  - `GET /health`
+  - `GET /api/sessions?year=2024`
+  - `POST /api/sessions/load`
+  - `GET /api/sessions/{session_id}/drivers`
+  - `GET /api/sessions/{session_id}/laps`
+  - `GET /api/sessions/{session_id}/gaps`
+  - `GET /api/sessions/{session_id}/tyres`
+  - `GET /api/sessions/{session_id}/pit-stops`
+  - `GET /api/sessions/{session_id}/compare/sectors?driver_a=VER&driver_b=LEC`
+  - `GET /api/sessions/{session_id}/compare/telemetry?driver_a=VER&driver_b=LEC`
+  - `GET /api/events/{year}/{round_number}/compare?driver_code=VER`
+  - `POST /api/events/{year}/{round_number}/precompute`
+  - `GET /api/precompute/{job_id}`
+  - `GET /api/sessions/{session_id}/export?dataset=laps&format=csv`
+  - `GET /api/events/{year}/{round_number}/compare/export?driver_code=VER&format=parquet`
+- Basic unit test for health endpoint
+
+## Quick start
+
+1. Create and activate a virtual environment.
+2. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+pip install -e .
+```
+
+3. Run the API:
+
+```bash
+uvicorn f1dash.main:app --reload
+```
+
+4. Start frontend (new terminal):
+
+```bash
+npm --prefix frontend install
+npm --prefix frontend run dev
+```
+
+Optional: start Redis and set `REDIS_URL` in `.env` to enable shared cache.
+
+5. Open docs:
+
+- http://127.0.0.1:8000/docs
+
+6. Open frontend:
+
+- http://127.0.0.1:5173
+
+## Example flow
+
+1. List season events:
+
+```bash
+curl "http://127.0.0.1:8000/api/sessions?year=2024"
+```
+
+2. Load one session (example: Bahrain race):
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/sessions/load" \
+  -H "Content-Type: application/json" \
+  -d '{"year": 2024, "round": 1, "session_type": "R"}'
+```
+
+3. Query loaded data:
+
+```bash
+curl "http://127.0.0.1:8000/api/sessions/2024-1-R/drivers"
+curl "http://127.0.0.1:8000/api/sessions/2024-1-R/laps?driver_code=VER&limit=20"
+curl "http://127.0.0.1:8000/api/sessions/2024-1-R/gaps"
+curl "http://127.0.0.1:8000/api/sessions/2024-1-R/tyres"
+curl "http://127.0.0.1:8000/api/sessions/2024-1-R/pit-stops"
+curl "http://127.0.0.1:8000/api/sessions/2024-1-R/compare/sectors?driver_a=VER&driver_b=LEC"
+curl "http://127.0.0.1:8000/api/sessions/2024-1-R/compare/telemetry?driver_a=VER&driver_b=LEC"
+curl "http://127.0.0.1:8000/api/events/2024/1/compare?driver_code=VER"
+curl -X POST "http://127.0.0.1:8000/api/events/2024/1/precompute"
+curl "http://127.0.0.1:8000/api/sessions/2024-1-R/export?dataset=laps&format=csv"
+curl "http://127.0.0.1:8000/api/events/2024/1/compare/export?driver_code=VER&format=parquet"
+```
+
+4. In frontend:
+
+- Click "Fetch events"
+- Select round and session type
+- Click "Load session"
+- Switch between Practice, Qualifying, and Race views
+- Use "Multi-Session Trend" for FP1/FP2/Q/R lap trend chart
+- Use "Background Precompute" to warm caches before analysis
+- Use "Data Engineer Export Workflow" to download CSV/Parquet files
+
+## Next implementation targets
+
+- Add persistent job storage and worker queue (Redis + RQ/Celery) for resilient precompute
+- Add notebook templates that consume exported Parquet files for portfolio storytelling
+- Add team dashboard presets and saved comparison profiles
+- Add authentication, role-based dashboards, and deployment pipeline
